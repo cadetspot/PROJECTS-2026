@@ -1,47 +1,55 @@
-import { useState } from "react";
-import {
-  Search,
-  MapPin,
-  BedDouble,
-  Users,
-  CalendarDays,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { BedDouble } from "lucide-react";
+import HostelCard from "./components/HostelCard";
+import BookingForm from "./components/BookingForm";
+import Header from "./components/Header";
+import BookingHistory from "./components/BookingHistory";
+import AdminDashboard from "./components/AdminDashboard";
 
-const hostels = [
-  {
-    id: 1,
-    name: "Sunrise Student Hostel",
-    location: "Nairobi",
-    price: 800,
-    rooms: 5,
-    image:
-      "https://images.unsplash.com/photo-1555854877-bab0e564b8d5?w=800",
-  },
-  {
-    id: 2,
-    name: "Green View Hostel",
-    location: "Kutus",
-    price: 600,
-    rooms: 3,
-    image:
-      "https://images.unsplash.com/photo-1564013799919-ab600027ffc6?w=800",
-  },
-  {
-    id: 3,
-    name: "Campus Comfort Hostel",
-    location: "Nairobi",
-    price: 1000,
-    rooms: 0,
-    image:
-      "https://images.unsplash.com/photo-1611892440504-42a792e24d32?w=800",
-  },
-];
 
 export default function App() {
+  const [showDashboard, setShowDashboard] = useState(false);
+  const [hostels, setHostels] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  useEffect(() => {
+  async function fetchHostels() {
+    try {
+      const response = await fetch("http://localhost:5000/api/hostels");
+
+      if (!response.ok) {
+        throw new Error("Failed to load hostels.");
+      }
+
+      const data = await response.json();
+
+      const formattedHostels = data.map((hostel) => ({
+        id: hostel.hostel_id,
+        name: hostel.name,
+        location: hostel.location,
+        price: Number(hostel.price_per_night),
+        rooms: hostel.available_rooms,
+        image: hostel.image_url,
+      }));
+
+      setHostels(formattedHostels);
+    } catch (err) {
+      setError("Could not load hostels. Check that the backend is running.");
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  fetchHostels();
+}, []);
   const [search, setSearch] = useState("");
   const [booking, setBooking] = useState(null);
   const [studentName, setStudentName] = useState("");
   const [checkIn, setCheckIn] = useState("");
+  const [studentEmail, setStudentEmail] = useState("");
+  const [studentPhone, setStudentPhone] = useState("");
+  const [nights, setNights] = useState(1);
   const [message, setMessage] = useState("");
 
   const filteredHostels = hostels.filter((hostel) =>
@@ -50,27 +58,75 @@ export default function App() {
       .includes(search.toLowerCase())
   );
 
-  function submitBooking(event) {
-    event.preventDefault();
+ async function submitBooking(event) {
+event.preventDefault();
 
-    setMessage(
-      `Demo booking for ${studentName} at ${booking.name}. Connect a backend to save this booking.`
-    );
+if (!booking) {
+  setMessage("Please select a hostel first.");
+  return;
+}
+
+setMessage("Saving your booking...");
+
+try {
+  const response = await fetch("http://localhost:5000/api/bookings", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      name: studentName,
+      email: studentEmail,
+      phone: studentPhone,
+      hostelId: booking.id,
+      checkIn: checkIn,
+      nights: Number(nights),
+    }),
+  });
+
+  const responseText = await response.text();
+console.log("Booking server response:", responseText);
+const data = JSON.parse(responseText);
+
+  if (!response.ok) {
+    throw new Error(data.error || "Could not save your booking.");
   }
+
+  setMessage(
+    `Booking successful! Your booking ID is ${data.booking.booking_id}.`
+  );
+
+  setHostels((currentHostels) =>
+    currentHostels.map((hostel) =>
+      hostel.id === booking.id
+        ? { ...hostel, rooms: Math.max(0, hostel.rooms - 1) }
+        : hostel
+    )
+  );
+
+  setStudentName("");
+  setStudentEmail("");
+  setStudentPhone("");
+  setCheckIn("");
+  setNights(1);
+} catch (error) {
+  setMessage(error.message || "Could not connect to the booking server.");
+  console.error("Booking error:", error);
+}
+
+}
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
-      <header className="bg-blue-700 text-white">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-5">
-          <h1 className="flex items-center gap-2 text-2xl font-bold">
-            <BedDouble />
-            HostelFinder
-          </h1>
-          <span className="hidden sm:block">
-            Student Accommodation
-          </span>
-        </div>
-      </header>
+    <div className="mb-4 flex justify-end gap-3 px-4 pt-4">
+      <button
+        onClick={() => setShowDashboard(!showDashboard)}
+        className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+      >
+        {showDashboard ? "Back to Hostel Booking" : "Admin Dashboard"}
+      </button>
+    </div>
+      <Header search={search} setSearch={setSearch} />
 
       <section className="bg-blue-50 px-6 py-12">
         <div className="mx-auto max-w-7xl">
@@ -81,15 +137,7 @@ export default function App() {
             Discover accommodation that suits your budget.
           </p>
 
-          <label className="mt-7 flex max-w-2xl items-center gap-3 rounded-xl border bg-white px-4">
-            <Search className="text-gray-500" />
-            <input
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search hostel or location..."
-              className="w-full py-4 outline-none"
-            />
-          </label>
+          
         </div>
       </section>
 
@@ -98,56 +146,32 @@ export default function App() {
           Available hostels
         </h2>
 
+              {loading && (
+              <p className="mb-4 text-gray-600">
+                Loading hostels...
+              </p>
+            )}
+
+            {error && (
+              <p role="alert" className="mb-4 text-red-600">
+                {error}
+              </p>
+            )}
+
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {filteredHostels.map((hostel) => (
-            <article
-              key={hostel.id}
-              className="overflow-hidden rounded-2xl border bg-white shadow-sm"
-            >
-              <img
-                src={hostel.image}
-                alt={hostel.name}
-                className="h-48 w-full object-cover"
-              />
-
-              <div className="space-y-4 p-5">
-                <h3 className="text-xl font-bold">
-                  {hostel.name}
-                </h3>
-
-                <p className="flex items-center gap-2 text-gray-600">
-                  <MapPin size={18} />
-                  {hostel.location}
-                </p>
-
-                <p className="flex items-center gap-2 text-gray-600">
-                  <Users size={18} />
-                  {hostel.rooms} rooms available
-                </p>
-
-                <div className="flex items-center justify-between border-t pt-4">
-                  <p className="font-bold text-blue-700">
-                    KSh {hostel.price}
-                    <span className="font-normal text-gray-500">
-                      {" "}/ night
-                    </span>
-                  </p>
-
-                  <button
-                    disabled={hostel.rooms === 0}
-                    onClick={() => {
-                      setBooking(hostel);
-                      setMessage("");
-                    }}
-                    className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:bg-gray-400"
-                  >
-                    Book now
-                  </button>
-                </div>
-              </div>
-            </article>
-          ))}
+          <HostelCard
+           key={hostel.id}
+           hostel={hostel}
+           onBook={(item) => {
+           setBooking(item);
+           setMessage("");
+   }}
+  />
+))}
         </div>
+
+        <BookingHistory/>
 
         {filteredHostels.length === 0 && (
           <p className="py-10 text-center text-gray-500">
@@ -155,75 +179,23 @@ export default function App() {
           </p>
         )}
       </main>
-
-      {booking && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <form
-            onSubmit={submitBooking}
-            className="w-full max-w-md space-y-4 rounded-2xl bg-white p-6"
-          >
-            <h2 className="text-2xl font-bold">
-              Book {booking.name}
-            </h2>
-
-            <label className="block">
-              Student name
-              <input
-                required
-                value={studentName}
-                onChange={(event) =>
-                  setStudentName(event.target.value)
-                }
-                className="mt-1 w-full rounded-lg border p-3"
-                placeholder="Enter your name"
-              />
-            </label>
-
-            <label className="block">
-              <span className="flex items-center gap-2">
-                <CalendarDays size={18} />
-                Check-in date
-              </span>
-              <input
-                required
-                type="date"
-                min={new Date().toLocaleDateString("en-CA")}
-                value={checkIn}
-                onChange={(event) =>
-                  setCheckIn(event.target.value)
-                }
-                className="mt-1 w-full rounded-lg border p-3"
-              />
-            </label>
-
-            <p className="font-semibold">
-              Price: KSh {booking.price} per night
-            </p>
-
-            {message && (
-              <p role="status" className="rounded-lg bg-blue-50 p-3 text-sm">
-                {message}
-              </p>
-            )}
-
-            <div className="flex gap-3">
-              <button
-                type="button"
-                onClick={() => setBooking(null)}
-                className="flex-1 rounded-lg border p-3"
-              >
-                Close
-              </button>
-              <button
-                type="submit"
-                className="flex-1 rounded-lg bg-blue-600 p-3 text-white"
-              >
-                Submit
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            <BookingForm
+          booking={booking}
+          studentName={studentName}
+          setStudentName={setStudentName}
+          studentEmail={studentEmail}
+          setStudentEmail={setStudentEmail}
+          studentPhone={studentPhone}
+          setStudentPhone={setStudentPhone}
+          nights={nights}
+          setNights={setNights}
+          checkIn={checkIn}
+          setCheckIn={setCheckIn}
+          message={message}
+          onClose={() => setBooking(null)}
+          onSubmit={submitBooking}
+        />
+    
     </div>
   );
 }

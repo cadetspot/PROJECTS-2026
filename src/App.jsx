@@ -4,9 +4,11 @@ import HostelCard from "./components/HostelCard";
 import BookingForm from "./components/BookingForm";
 import Header from "./components/Header";
 import BookingHistory from "./components/BookingHistory";
+import AdminDashboard from "./components/AdminDashboard";
 
 
 export default function App() {
+  const [showDashboard, setShowDashboard] = useState(false);
   const [hostels, setHostels] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -116,6 +118,20 @@ const data = JSON.parse(responseText);
 
   return (
     <div className="min-h-screen bg-gray-50 text-gray-900">
+    <div className="mb-4 flex justify-end gap-3 px-4 pt-4">
+      <button
+        onClick={() => setShowDashboard(!showDashboard)}
+        className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white hover:bg-blue-700"
+      >
+        {showDashboard ? "Back to Hostel Booking" : "Admin Dashboard"}
+      </button>
+    </div>
+    {showDashboard ? (
+    <AdminDashboard />
+    ) : (
+    <> 
+    
+
       <Header search={search} setSearch={setSearch} />
 
       <section className="bg-blue-50 px-6 py-12">
@@ -185,7 +201,8 @@ const data = JSON.parse(responseText);
           onClose={() => setBooking(null)}
           onSubmit={submitBooking}
         />
-    
+    </>
+)}
     </div>
   );
 }
