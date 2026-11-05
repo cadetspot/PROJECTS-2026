@@ -9,6 +9,8 @@ bookings: 0,
 availableRooms: 0,
 });
 
+const [recentBookings, setRecentBookings] = useState([]);
+
 const [loading, setLoading] = useState(true);
 const [error, setError] = useState("");
 const [activeSection, setActiveSection] = useState("Dashboard");
@@ -29,6 +31,12 @@ try {
 
   const hostels = await hostelsResponse.json();
   const bookings = await bookingsResponse.json();
+  
+  setRecentBookings(
+  [...bookings].sort(
+    (a, b) => new Date(b.created_at) - new Date(a.created_at)
+  ).slice(0, 5)
+);
 
   const students = new Set(
     bookings.map((booking) => booking.email).filter(Boolean)
@@ -174,18 +182,18 @@ Overview of your hostel booking system.
           return (
             <article
               key={card.title}
-              className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200"
+              className="group rounded-2xl bg-white p-6 shadow-md ring-1 ring-slate-200 transition-all duration-300 hover:-translate-y-1 hover:shadow-xl"
             >
               <div className="flex items-center justify-between">
                 <p className="text-sm font-medium text-slate-500">
                   {card.title}
                 </p>
-                <div className="rounded-xl bg-blue-50 p-3 text-blue-600">
+                <div className="rounded-xl bg-blue-100 p-3 text-blue-700 transition-colors duration-300 group-hover:bg-blue-600 group-hover:text-white">
                   <Icon size={23} />
                 </div>
               </div>
 
-              <p className="mt-5 text-3xl font-bold text-slate-900">
+             <p className="mt-5 text-4xl font-extrabold tracking-tight text-slate-900 transition-colors duration-300 group-hover:text-blue-700">
                 {card.value}
               </p>
             </article>
@@ -193,6 +201,77 @@ Overview of your hostel booking system.
         })}
       </div>
     )}
+     <div className="mt-8 overflow-hidden rounded-2xl bg-white shadow-md ring-1 ring-slate-200">
+  <div className="border-b border-slate-200 p-6">
+    <h2 className="text-xl font-bold text-slate-900">
+      Recent Bookings
+    </h2>
+    <p className="mt-1 text-sm text-slate-500">
+      The five most recently created bookings.
+    </p>
+  </div>
+
+  {recentBookings.length === 0 ? (
+    <p className="p-6 text-slate-500">
+      No bookings found yet.
+    </p>
+  ) : (
+    <div className="overflow-x-auto">
+      <table className="w-full text-left text-sm">
+        <thead className="bg-slate-50 text-slate-600">
+          <tr>
+            <th className="px-6 py-4 font-semibold">Booking ID</th>
+            <th className="px-6 py-4 font-semibold">Student</th>
+            <th className="px-6 py-4 font-semibold">Hostel</th>
+            <th className="px-6 py-4 font-semibold">Check-in Date</th>
+            <th className="px-6 py-4 font-semibold">Total Price</th>
+            <th className="px-6 py-4 font-semibold">Status</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-100">
+          {recentBookings.map((booking) => (
+            <tr key={booking.booking_id} className="hover:bg-slate-50">
+              <td className="px-6 py-4 font-medium text-slate-900">
+                #{booking.booking_id}
+              </td>
+              <td className="px-6 py-4 text-slate-700">
+                {booking.full_name || booking.student_name || booking.email || "Student"}
+              </td>
+              <td className="px-6 py-4 text-slate-700">
+                {booking.hostel_name || booking.name || "Hostel"}
+              </td>
+              <td className="px-6 py-4 text-slate-700">
+              {booking.check_in
+                ? new Date(booking.check_in).toLocaleDateString()
+                : "Not set"}
+              </td>
+              <td className="px-6 py-4 font-semibold text-slate-900">
+                {booking.total_price != null
+                  ? `KSh ${Number(booking.total_price).toLocaleString()}`
+                  : "Not available"}
+              </td>
+              <td className="px-6 py-4">
+                <span
+                className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                booking.status?.toLowerCase() === "confirmed"
+                  ? "bg-green-100 text-green-700"
+                  : booking.status?.toLowerCase() === "cancelled"
+                  ? "bg-red-100 text-red-700"
+                  : booking.status?.toLowerCase() === "pending"
+                  ? "bg-yellow-100 text-yellow-800"
+                  : "bg-blue-100 text-blue-700"
+              }`}
+              > 
+                {booking.status || "Unknown"}
+              </span>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</div>
 
     <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
       <h2 className="text-xl font-bold text-slate-900">
@@ -202,15 +281,6 @@ Overview of your hostel booking system.
         Use this dashboard to monitor hostels, students, bookings, and room
         availability. Management tools will be added in the next steps.
       </p>
-  <div className="mt-8 rounded-2xl bg-white p-6 shadow-sm ring-1 ring-slate-200">
-          <h2 className="text-xl font-bold text-slate-900">
-            Welcome, Administrator
-          </h2>
-          <p className="mt-2 text-slate-600">
-            Use this dashboard to monitor hostels, students, bookings, and room
-            availability. Management tools will be added in the next steps.
-          </p>
-        </div>
       </div>
     </div>
   </div>
